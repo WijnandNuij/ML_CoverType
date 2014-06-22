@@ -6,11 +6,12 @@ runTestSet <- function(targetLocation='/home/wijnand/R_workspace_covertype/resou
         trainingSet$Cover_Type <- as.factor(trainingSet$Cover_Type)
         trainingSet$Id <- NULL
         
-        trainedModel <- c50Tree(trainingSet)
+        #trainedModel <- c50Tree(trainingSet)
+        trainedModel <- extraTree(trainingSet)
         
         testSet <- loadData('/home/wijnand/R_workspace_covertype/resources/test.csv')
         
-        resultSet <- predict(trainedModel, testSet)
+        resultSet <- predict(trainedModel, testSet[,!"Id",with=FALSE])
         
         result <- NULL
         result$Id <- testSet$Id
@@ -39,8 +40,8 @@ runTraining <- function(percentageTrain=0.7)
         resultC50 <- predict(object = modelC50, newdata = testSet)
         printResult(testSet$Cover_Type, resultC50)
         
-        alternativeTree <- randomForestTree(trainSet)
-        resultAlternativeTree <- predict(object = alternativeTree, newdata = testSet)
+        alternativeTree <- extraTree(trainSet)
+        resultAlternativeTree <- predict(object = alternativeTree, newdata = testSet[,!"Cover_Type",with=FALSE])
         printResult(testSet$Cover_Type, resultAlternativeTree)
 }
 
@@ -49,6 +50,14 @@ printResult <- function(actual, prediction)
         require(caret)
         confMatrix <- confusionMatrix(prediction, reference = actual)
         print(confMatrix)
+}
+
+extraTree <- function(trainData)
+{
+        # java.lang.OutOfMemoryError: Java heap space
+        options( java.parameters = "-Xmx2g" )
+        require(extraTrees)
+        model <- extraTrees(trainData[,!"Cover_Type",with=FALSE], trainData$Cover_Type)
 }
 
 randomForestTree <- function(trainData)
