@@ -7,7 +7,8 @@ runTestSet <- function(targetLocation='/home/wijnand/R_workspace_covertype/resou
         trainingSet$Id <- NULL
         
         #trainedModel <- c50Tree(trainingSet)
-        trainedModel <- extraTree(trainingSet)
+        #trainedModel <- extraTree(trainingSet)
+        trainedModel <- extraTreeCaret(trainingSet)
         
         testSet <- loadData('/home/wijnand/R_workspace_covertype/resources/test.csv')
         
@@ -36,24 +37,46 @@ runTraining <- function(percentageTrain=0.7)
         trainSet <- completeSet[1:numberTrain,]
         testSet <- completeSet[(numberTrain+1):nrow(completeSet),]
         
-        modelC50 <- c50Tree(trainSet)
-        resultC50 <- predict(object = modelC50, newdata = testSet)
-        printResult(testSet$Cover_Type, resultC50)
+        #model1 <- extraTree(trainSet)
+        #model2 <- treeTree(trainSet)
+        #model3 <- randomForestTree(trainSet)
+        #model4 <- c50Tree(trainSet)
+        #model5 <- extraTreeCaret(trainSet)
+        model6 <- deepnet(trainSet)
         
-        alternativeTree <- extraTree(trainSet)
-        #alternativeTree <- treeTree(trainSet)
-        #alternativeTree <- randomForestTree(trainSet)
+        #result1 <- predict(object = model1, newdata = testSet[,!"Cover_Type",with=FALSE])
+        #result2 <- predict(object = model2, newdata = testSet[,!"Cover_Type",with=FALSE])
+        #result3 <- predict(object = model3, newdata = testSet[,!"Cover_Type",with=FALSE])
+        #result4 <- predict(object = model4, newdata = testSet[,!"Cover_Type",with=FALSE])
+        #result5 <- predict(object = model5, newdata = testSet[,!"Cover_Type",with=FALSE])
+        result6 <- predict(object = model6, newdata = testSet[,!"Cover_Type",with=FALSE])
         
-        resultAlternativeTree <- predict(object = alternativeTree, newdata = testSet[,!"Cover_Type",with=FALSE])
+        #print(str(testSet$Cover_Type))
+        #print(str(result2))
+        
+        #printResult(testSet$Cover_Type, result1, "extraTree ")
+        #printResult(testSet$Cover_Type, result2, "treeTree ")
+        #printResult(testSet$Cover_Type, result3, "rftree ")
+        #printResult(testSet$Cover_Type, result4, "c50tree ")
+        #printResult(testSet$Cover_Type, result5, "extraTreeCaret ")
+        printResult(testSet$Cover_Type, result6, "deepnet ")
+        
+        #print(model1)
+        #print(confusionMatrix(result1, reference = testSet$Cover_Type))
+        #print("----------")
+        
+        print(model6)
+        print(confusionMatrix(result6, reference = testSet$Cover_Type))
+        print("----------")
+        
+        model5
+}
 
-        printResult(testSet$Cover_Type, resultAlternativeTree)
- }
-
-printResult <- function(actual, prediction)
+printResult <- function(actual, prediction, name)
 {
         require(caret)
         confMatrix <- confusionMatrix(prediction, reference = actual)
-        print(confMatrix)
+        print(paste0(name, confMatrix$overall[1]))
 }
 
 extraTree <- function(trainData)
@@ -63,6 +86,52 @@ extraTree <- function(trainData)
         require(extraTrees)
         model <- extraTrees(trainData[,!"Cover_Type",with=FALSE], trainData$Cover_Type, ntree = 1500, 
                             numRandomCuts = 5, numThreads = 4)
+}
+
+extraTreeCaret <- function(trainData)
+{
+        
+        library(caret)
+        library(doSNOW)
+        registerDoSNOW(makeCluster(4, outfile=""))
+        
+        fitControl <- trainControl(method = "cv", number = 5, verboseIter = T, allowParallel = T)
+        grid <- expand.grid(.mtry = 40,
+                            .numRandomCuts = 3)
+        options( java.parameters = "-Xmx4g" )
+        
+        trainedModel <- train(Cover_Type ~ . , trainData,
+                              method="extraTrees",
+                              trControl = fitControl,
+                              numTreads = 4,
+                              ntree=750,
+                              nodesize=10,
+                              tuneGrid=grid,
+                              metric="Kappa")
+}
+
+deepnet <- function(trainData)
+{
+        
+        library(caret)
+        #library(doSNOW)
+        #registerDoSNOW(makeCluster(4, outfile=""))
+        
+        #fitControl <- trainControl(method = "cv", number = 5, verboseIter = T, allowParallel = T)
+        #grid <- expand.grid(.mtry = 40,.numRandomCuts = 3)
+        #options( java.parameters = "-Xmx4g" )
+        
+        fitControl <- trainControl(verboseIter = T)
+        output <- as.vector(factor(trainData$Cover_Type))        
+        
+        trainedModel <- train(x = trainData[,!"Cover_Type",with=FALSE], y = output,
+                              method="dnn")
+                              #trControl = fitControl,
+                              #numTreads = 4,
+                              #ntree=750,
+                              #nodesize=10,
+                              #tuneGrid=grid,
+                              #metric="Kappa")
 }
 
 randomForestTree <- function(trainData)
@@ -75,7 +144,7 @@ randomForestTree <- function(trainData)
 treeTree <- function(trainData)
 {
   require(tree)
-  trainedModel <- tree(Cover_Type ~ . , trainData, y=T)
+  trainedModel <- tree(Cover_Type ~ . , trainData, y=T, )
 }
 
 
